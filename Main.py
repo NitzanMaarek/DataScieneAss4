@@ -102,7 +102,7 @@ class Classifier:
 
     def _fill_empty_cells_of_category(self, attribute_name):
         most_common_value = self.data[attribute_name].value_counts().argmax()
-        self.data[attribute_name].fillna(most_common_value, inplace=True)
+        self.data[attribute_name].fillna(most_common_value, inplace=True)   
         print(self.data)
 
     def _fill_empty_cells_of_numeric(self, attribute_name):
