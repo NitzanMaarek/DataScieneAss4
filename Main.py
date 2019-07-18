@@ -17,11 +17,18 @@ class GUI:
         self.dir_path_label = Label(self.frame, text='Directory Path')
         self.discretization_label = Label(self.frame, text='Discretization Bins')
 
-        self.dir_path_entry = Entry(self.frame, width=50)
-        self.discretization_entry = Entry(self.frame, width=50)
+        self.dir_path_string_var = StringVar(self.frame)
+        self.discretization_string_var = StringVar(self.frame)
+
+        self.dir_path_string_var.trace("w", self._check_fields)
+        self.discretization_string_var.trace("w", self._check_fields)
+
+        self.dir_path_entry = Entry(self.frame, width=50, textvariable=self.dir_path_string_var)
+        self.discretization_entry = Entry(self.frame, width=50, textvariable=self.discretization_string_var)
 
         self.browse_button = Button(self.frame, text='Browse', command=self.browse_input_dir, width=10)
         self.build_button = Button(self.frame, text='Build', command=self.build_dataset, width=30)
+        self.build_button.config(state='disabled')
         self.classify_button = Button(self.frame, text='Classify', command=self.classify_dataset, width=30)
 
         self.dir_path_label.grid(row=0, column=0)
@@ -51,9 +58,16 @@ class GUI:
     def build_dataset(self):
         dir_name = self.dir_path_entry.get()
         number_of_bins = self.discretization_entry.get()
+        # if self._check_if_files_exist(dir_name) and self._check_bins_input():
+        attributes_to_values_dict = analyze_and_get_structure_dictionary(dir_name)
+        classifier = Classifier(dir_name, attributes_to_values_dict, number_of_bins)
+
+    def _check_fields(self, *args):
+        dir_name = self.dir_path_entry.get()
         if self._check_if_files_exist(dir_name) and self._check_bins_input():
-            attributes_to_values_dict = analyze_and_get_structure_dictionary(dir_name)
-            classifier = Classifier(dir_name, attributes_to_values_dict, number_of_bins)
+            self.build_button.config(state='normal')
+        else:
+            self.build_button.config(state='disabled')
 
 
     def _check_bins_input(self):
