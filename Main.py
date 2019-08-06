@@ -171,8 +171,8 @@ class Classifier:
         self.value_counts = {}
         label = 'class'
         label_column = self.data[label]
-        labels_num = label_column.nunique()
-        labels = label_column.unique()
+        # labels_num = label_column.nunique()
+        # labels = label_column.unique()
 
         self.samples_count = len(self.data)
         self.yes_count = len(self.data[self.data['class'] == 'Y'])
