@@ -5,6 +5,10 @@ from tkinter import filedialog, messagebox
 import pandas as pd
 import numpy as np
 
+YES = 'Y'
+NO = 'N'
+M = 2
+
 class GUI:
 
     def __init__(self):
@@ -60,7 +64,8 @@ class GUI:
         number_of_bins = self.discretization_entry.get()
         # if self._check_if_files_exist(dir_name) and self._check_bins_input():
         attributes_to_values_dict = analyze_and_get_structure_dictionary(dir_name)
-        classifier = Classifier(dir_name, attributes_to_values_dict, number_of_bins)
+        self.classifier = Classifier(dir_name, attributes_to_values_dict, number_of_bins)
+        self.classifier.fit()
 
     def _check_fields(self, *args):
         dir_name = self.dir_path_entry.get()
@@ -94,9 +99,17 @@ class GUI:
             return False
         return True
 
-    def classify_dataset(self):
-        print('bruuhh')
+    def _write_output(self, train_with_prediction):
+        train_with_prediction['output_index'] = [i + 1 for i in train_with_prediction.index]
+        output = train_with_prediction[['output_index', 'prediction']]
+        output_path = self.dir_path_entry.get() + '\\output.txt'
+        output.to_csv(output_path, header=None, index=None, sep=' ')
 
+    def classify_dataset(self):
+        train_path = self.dir_path_entry.get() + '\\test.csv'
+        train = pd.read_csv(train_path, index_col=False)
+        train_with_prediction = self.classifier.predict(train)
+        self._write_output(train_with_prediction)
 
 class Classifier:
 
@@ -106,6 +119,8 @@ class Classifier:
         self.number_of_bins = int(number_of_bins)
         self.data = pd.read_csv(dir_name + '\\train.csv')
         self._prepare_data()
+        self.n = len(self.data)
+        self.m = 2
 
     def _prepare_data(self):
         for key in self.attributes_to_values_dict:
@@ -135,6 +150,96 @@ class Classifier:
         bins.append(max_value)
         self.data[attribute_name + '_binned'] = pd.cut(self.data[attribute_name], 3)
         print(self.data) #testing binning
+
+    # # TODO: need to count for 1 and for 0?
+    # def _calculate_probabilites(self):
+    #     self.probabilities_dictionary = {}
+    #     self.num_of_rows = len(self.data)
+    #
+    #     for column in self.data.columns:
+    #         counts = self.data[column].value_counts()
+    #         self.probabilities_dictionary[column] = {}
+    #         for value in counts:
+    #             self.probabilities_dictionary[column][value] = counts[value] / self.num_of_rows
+
+
+    def fit(self):
+        """
+        Using m-estimate, m=2
+        :return:
+        """
+        self.value_counts = {}
+        label = 'class'
+        label_column = self.data[label]
+        labels_num = label_column.nunique()
+        labels = label_column.unique()
+
+        self.samples_count = len(self.data)
+        self.yes_count = len(self.data[self.data['class'] == 'Y'])
+        self.no_count = len(self.data[self.data['class'] == 'N'])
+
+        for column in self.data.columns:
+            if column == label:
+                continue
+            self.value_counts[column] = {}
+            distribution = self.data.groupby([column, label_column]).size().reset_index().rename(columns={0: 'count'})
+            for i, row in distribution.iterrows():
+                column_value = row[column]
+                label_value = row[label]
+                if column_value not in self.value_counts[column]:
+                    self.value_counts[column][column_value] = {}
+                self.value_counts[column][column_value][label_value] = row['count']
+
+    def _predict_row_label(self, row):
+        possible_predictions = ['N', 'Y']
+        max_proba = 0
+        prediction = None
+        for p_prediction in possible_predictions:
+            proba = self._calculate_probability(row, p_prediction)
+            if proba > max_proba:
+                prediction = p_prediction
+                max_proba = proba
+        return prediction, max_proba
+
+    def _calculate_probability(self, row, p_prediction):
+        probabilities = []
+        for tup in row.items():
+            if tup[0] == 'class':
+                continue
+            if tup[0] in self.value_counts:
+                if tup[1] in self.value_counts[tup[0]]:
+                    if p_prediction in self.value_counts[tup[0]][tup[1]]:
+                        nc = self.value_counts[tup[0]][tup[1]][p_prediction]
+            else:
+                nc = 0
+            if p_prediction == 'Y':
+                n = self.yes_count
+            else:
+                n = self.no_count
+            probabilities.append(self.m_estimate(nc, n, M))
+
+        result = 1
+        for p in probabilities:
+            result = result * p
+        print result * float(self.samples_count) / n
+        return result * float(self.samples_count) / n
+
+    @staticmethod
+    def m_estimate(nc, n, m):
+        p = float(1) / m
+        return float((nc + m * p) / (n + m))
+
+
+    def predict(self, train):
+        predictions = []
+        probabilities = []
+        for i, row in train.iterrows():
+            prediction, proba = self._predict_row_label(row)
+            predictions.append(prediction)
+            probabilities.append(proba)
+        train['prediction'] = predictions
+        train['probability'] = probabilities
+        return train
 
 
 def analyze_and_get_structure_dictionary(dir_name):
