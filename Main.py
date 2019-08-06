@@ -109,6 +109,11 @@ class GUI:
         train_path = self.dir_path_entry.get() + '\\test.csv'
         train = pd.read_csv(train_path, index_col=False)
         train_with_prediction = self.classifier.predict(train)
+        correct = 0
+        for i, row in train_with_prediction.iterrows():
+            if row['class'] is row['prediction']:
+                correct+=1
+        print float(correct) / len(train)
         self._write_output(train_with_prediction)
 
 class Classifier:
@@ -143,12 +148,13 @@ class Classifier:
         max_value = self.data[attribute_name].max()
         min_value = self.data[attribute_name].min()
         w = (max_value - min_value)/self.number_of_bins
-        bins = []
+        bins = [] # TODO: check if we need this
         for i in range(0, self.number_of_bins):
             interval = min_value + i*w
             bins.append(interval)
         bins.append(max_value)
-        self.data[attribute_name + '_binned'] = pd.cut(self.data[attribute_name], 3)
+        self.data[attribute_name + '_binned'] = pd.cut(self.data[attribute_name].values, self.number_of_bins)
+        self.data = self.data.drop(attribute_name, axis=1)
         print(self.data) #testing binning
 
     # # TODO: need to count for 1 and for 0?
@@ -171,12 +177,10 @@ class Classifier:
         self.value_counts = {}
         label = 'class'
         label_column = self.data[label]
-        # labels_num = label_column.nunique()
-        # labels = label_column.unique()
-
+        self._count_labels()
         self.samples_count = len(self.data)
-        self.yes_count = len(self.data[self.data['class'] == 'Y'])
-        self.no_count = len(self.data[self.data['class'] == 'N'])
+        # self.yes_count = len(self.data[self.data['class'] == 'Y'])
+        # self.no_count = len(self.data[self.data['class'] == 'N'])
 
         for column in self.data.columns:
             if column == label:
@@ -190,11 +194,14 @@ class Classifier:
                     self.value_counts[column][column_value] = {}
                 self.value_counts[column][column_value][label_value] = row['count']
 
+    def _count_labels(self):
+        self.classes_count = dict(self.data['class'].value_counts())
+        self.possible_predictions = list(self.data['class'].unique())
+
     def _predict_row_label(self, row):
-        possible_predictions = ['N', 'Y']
         max_proba = 0
         prediction = None
-        for p_prediction in possible_predictions:
+        for p_prediction in self.possible_predictions:
             proba = self._calculate_probability(row, p_prediction)
             if proba > max_proba:
                 prediction = p_prediction
@@ -203,6 +210,7 @@ class Classifier:
 
     def _calculate_probability(self, row, p_prediction):
         probabilities = []
+        n = self.classes_count[p_prediction]
         for tup in row.items():
             if tup[0] == 'class':
                 continue
@@ -212,25 +220,30 @@ class Classifier:
                         nc = self.value_counts[tup[0]][tup[1]][p_prediction]
             else:
                 nc = 0
-            if p_prediction == 'Y':
-                n = self.yes_count
-            else:
-                n = self.no_count
+            # if p_prediction == 'Y':
+            #     n = self.yes_count
+            # else:
+            #     n = self.no_count
             probabilities.append(self.m_estimate(nc, n, M))
 
         result = 1
         for p in probabilities:
             result = result * p
-        print result * float(self.samples_count) / n
-        return result * float(self.samples_count) / n
+        # print result * float(nc) / n
+        return result * (float(n) / self.samples_count)
 
-    @staticmethod
-    def m_estimate(nc, n, m):
-        p = float(1) / m
-        return float((nc + m * p) / (n + m))
+    def m_estimate(self, nc, n, m):
+        p = float(1) / len(self.classes_count)
+        numerator = nc + (m * p)
+        denominator = n + m
+        result = float(numerator) / denominator
+        return result
 
 
     def predict(self, train):
+        self.data = train
+        self._prepare_data()
+        train = self.data
         predictions = []
         probabilities = []
         for i, row in train.iterrows():
