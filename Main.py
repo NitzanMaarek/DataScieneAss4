@@ -109,11 +109,11 @@ class GUI:
         train_path = self.dir_path_entry.get() + '\\test.csv'
         train = pd.read_csv(train_path, index_col=False)
         train_with_prediction = self.classifier.predict(train)
-        correct = 0
-        for i, row in train_with_prediction.iterrows():
-            if row['class'] is row['prediction']:
-                correct+=1
-        print float(correct) / len(train)
+        # correct = 0
+        # for i, row in train_with_prediction.iterrows():
+        #     if row['class'] is row['prediction']:
+        #         correct+=1
+        # print float(correct) / len(train)
         self._write_output(train_with_prediction)
 
 class Classifier:
@@ -137,7 +137,6 @@ class Classifier:
     def _fill_empty_cells_of_category(self, attribute_name):
         most_common_value = self.data[attribute_name].value_counts().argmax()
         self.data[attribute_name].fillna(most_common_value, inplace=True)   
-        print(self.data)
 
     def _fill_empty_cells_of_numeric(self, attribute_name):
         mean_value = self.data[attribute_name].mean()
@@ -155,19 +154,6 @@ class Classifier:
         bins.append(max_value)
         self.data[attribute_name + '_binned'] = pd.cut(self.data[attribute_name].values, self.number_of_bins)
         self.data = self.data.drop(attribute_name, axis=1)
-        print(self.data) #testing binning
-
-    # # TODO: need to count for 1 and for 0?
-    # def _calculate_probabilites(self):
-    #     self.probabilities_dictionary = {}
-    #     self.num_of_rows = len(self.data)
-    #
-    #     for column in self.data.columns:
-    #         counts = self.data[column].value_counts()
-    #         self.probabilities_dictionary[column] = {}
-    #         for value in counts:
-    #             self.probabilities_dictionary[column][value] = counts[value] / self.num_of_rows
-
 
     def fit(self):
         """
@@ -220,16 +206,11 @@ class Classifier:
                         nc = self.value_counts[tup[0]][tup[1]][p_prediction]
             else:
                 nc = 0
-            # if p_prediction == 'Y':
-            #     n = self.yes_count
-            # else:
-            #     n = self.no_count
             probabilities.append(self.m_estimate(nc, n, M))
 
         result = 1
         for p in probabilities:
             result = result * p
-        # print result * float(nc) / n
         return result * (float(n) / self.samples_count)
 
     def m_estimate(self, nc, n, m):
