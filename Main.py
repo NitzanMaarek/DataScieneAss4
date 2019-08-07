@@ -48,6 +48,9 @@ class GUI:
         self.root.mainloop()
 
     def browse_input_dir(self):
+        """
+        Methods that allows the user to select a directory where all the
+        """
         curr_directory = os.getcwd()
         dir_name = filedialog.askdirectory(initialdir=curr_directory, title="Select a directory")
         if len(dir_name) > 0:
@@ -60,6 +63,9 @@ class GUI:
             messagebox.showerror('Naive Bayes Classifier', 'Please select a directory')
 
     def build_dataset(self):
+        """
+        Builds the dataset and model using the classifier
+        """
         dir_name = self.dir_path_entry.get()
         number_of_bins = self.discretization_entry.get()
         # if self._check_if_files_exist(dir_name) and self._check_bins_input():
@@ -68,6 +74,9 @@ class GUI:
         self.classifier.fit()
 
     def _check_fields(self, *args):
+        """
+        Checks the fields in the GUI and send errors if needed
+        """
         dir_name = self.dir_path_entry.get()
         if self._check_if_files_exist(dir_name) and self._check_bins_input():
             self.build_button.config(state='normal')
@@ -76,6 +85,9 @@ class GUI:
 
 
     def _check_bins_input(self):
+        """
+        Check if the number of bins is valid
+        """
         number_of_bins = self.discretization_entry.get()
         pattern = re.compile("[1-9]([0-9])*")
         if pattern.match(number_of_bins):
@@ -85,6 +97,10 @@ class GUI:
             return False
 
     def _check_if_files_exist(self, dir_name):
+        """
+        Checks if all the required files are in the given directory and present errors if needed
+        :param dir_name: dir path
+        """
         if not os.path.isdir(dir_name):
             messagebox.showerror('Naive Bayes Classifier', 'Please select a directory')
             return False
@@ -100,12 +116,19 @@ class GUI:
         return True
 
     def _write_output(self, train_with_prediction):
+        """
+        Writes the classifier predict input to file
+        :param train_with_prediction: train data with the predictions from the classifier
+        """
         train_with_prediction['output_index'] = [i + 1 for i in train_with_prediction.index]
         output = train_with_prediction[['output_index', 'prediction']]
         output_path = self.dir_path_entry.get() + '\\output.txt'
         output.to_csv(output_path, header=None, index=None, sep=' ')
 
     def classify_dataset(self):
+        """
+        Calls the classifier predict method to predict the classes of the given test set
+        """
         train_path = self.dir_path_entry.get() + '\\test.csv'
         train = pd.read_csv(train_path, index_col=False)
         train_with_prediction = self.classifier.predict(train)
@@ -128,6 +151,9 @@ class Classifier:
         self.m = 2
 
     def _prepare_data(self):
+        """
+        Fills missing values and bins the data
+        """
         for key in self.attributes_to_values_dict:
             if self.attributes_to_values_dict[key] == 'NUMERIC':
                 self._fill_empty_cells_of_numeric(key)
@@ -135,15 +161,27 @@ class Classifier:
                 self._fill_empty_cells_of_category(key)
 
     def _fill_empty_cells_of_category(self, attribute_name):
+        """
+        Fills empty cells in one given category in the data
+        :param attribute_name: Category name
+        """
         most_common_value = self.data[attribute_name].value_counts().argmax()
         self.data[attribute_name].fillna(most_common_value, inplace=True)   
 
     def _fill_empty_cells_of_numeric(self, attribute_name):
+        """
+        Fills empty cells in one given numeric category in the data
+        :param attribute_name: Category name
+        """
         mean_value = self.data[attribute_name].mean()
         self.data[attribute_name].fillna(mean_value, inplace=True)
         self._bin_numeric_column(attribute_name)
 
     def _bin_numeric_column(self, attribute_name):
+        """
+        Bins a specific numeric category
+        :param attribute_name: Category name
+        """
         max_value = self.data[attribute_name].max()
         min_value = self.data[attribute_name].min()
         w = (max_value - min_value)/self.number_of_bins
@@ -157,7 +195,7 @@ class Classifier:
 
     def fit(self):
         """
-        Using m-estimate, m=2
+        Builds tsUsing m-estimate, m=2
         :return:
         """
         self.value_counts = {}
