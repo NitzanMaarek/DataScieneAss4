@@ -195,16 +195,13 @@ class Classifier:
 
     def fit(self):
         """
-        Builds tsUsing m-estimate, m=2
-        :return:
+        Builds the model according to the train data, using m-estimate, m=2
         """
         self.value_counts = {}
         label = 'class'
         label_column = self.data[label]
         self._count_labels()
         self.samples_count = len(self.data)
-        # self.yes_count = len(self.data[self.data['class'] == 'Y'])
-        # self.no_count = len(self.data[self.data['class'] == 'N'])
 
         for column in self.data.columns:
             if column == label:
@@ -219,10 +216,18 @@ class Classifier:
                 self.value_counts[column][column_value][label_value] = row['count']
 
     def _count_labels(self):
+        """
+        Count the number of  classes and the number appearances of each of them
+        """
         self.classes_count = dict(self.data['class'].value_counts())
         self.possible_predictions = list(self.data['class'].unique())
 
     def _predict_row_label(self, row):
+        """
+        predicts the class of a given sample
+        # :param row: row from the test dataset
+        :return: the prediction and the probability of that prediction
+        """
         max_proba = 0
         prediction = None
         for p_prediction in self.possible_predictions:
@@ -233,6 +238,12 @@ class Classifier:
         return prediction, max_proba
 
     def _calculate_probability(self, row, p_prediction):
+        """
+        calculates the probability that a given sample will be from a given class
+        :param row: sample from the test data
+        :param p_prediction: given possible prediction
+        :return: the probability that the given sample belongs to the given class
+        """
         probabilities = []
         n = self.classes_count[p_prediction]
         for tup in row.items():
@@ -252,6 +263,13 @@ class Classifier:
         return result * (float(n) / self.samples_count)
 
     def m_estimate(self, nc, n, m):
+        """
+        m estimate formula
+        :param nc: number of sample where c=c1 and v=v1
+        :param n: number of sample where c=c1
+        :param m: given m
+        :return: result of the formula
+        """
         p = float(1) / len(self.classes_count)
         numerator = nc + (m * p)
         denominator = n + m
@@ -259,22 +277,32 @@ class Classifier:
         return result
 
 
-    def predict(self, train):
-        self.data = train
+    def predict(self, test):
+        """
+        predicts the labels of a given test data set
+        :param test: data set
+        :return: the test data set with the predictions
+        """
+        self.data = test
         self._prepare_data()
-        train = self.data
+        test = self.data
         predictions = []
         probabilities = []
-        for i, row in train.iterrows():
+        for i, row in test.iterrows():
             prediction, proba = self._predict_row_label(row)
             predictions.append(prediction)
             probabilities.append(proba)
-        train['prediction'] = predictions
-        train['probability'] = probabilities
-        return train
+        test['prediction'] = predictions
+        test['probability'] = probabilities
+        return test
 
 
 def analyze_and_get_structure_dictionary(dir_name):
+    """
+    analyzes the data structure
+    :param dir_name: dir path
+    :return: structure of the data set
+    """
     structure_dictionary_attribute_to_values = {}
     structure_file = open(dir_name + '\\Structure.txt', 'r')
     for line in structure_file:
